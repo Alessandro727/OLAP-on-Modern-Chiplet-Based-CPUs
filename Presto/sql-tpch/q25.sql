@@ -1,0 +1,1 @@
+SELECT 0.5 * sum(quantity) FROM lineitem,partsupp WHERE lineitem.partkey = partsupp.partkey AND lineitem.suppkey = partsupp.suppkey AND shipdate >= date('1994-01-01') AND shipdate < date('1994-01-01') + interval '1' YEAR;

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="e04d353e-6f3d-4a12-b9f0-1ed91397b128" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ProjectId" id="1ZRvz8km5CQsrqB0bBlSJCh8imI" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="project.structure.last.edited" value="Project" />
+    <property name="project.structure.proportion" value="0.0" />
+    <property name="project.structure.side.proportion" value="0.0" />
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e04d353e-6f3d-4a12-b9f0-1ed91397b128" name="Default Changelist" comment="" />
+      <created>1584814980252</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1584814980252</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="104" y="51" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1584815453495">
+      <screen x="0" y="0" width="1280" height="778" />
+    </state>
+    <state x="104" y="51" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1280.778@0.0.1280.778" timestamp="1584815453495" />
+    <state x="377" y="179" key="#com.intellij.ide.util.TreeClassChooserDialog" timestamp="1584815026468">
+      <screen x="0" y="0" width="1280" height="778" />
+    </state>
+    <state x="377" y="179" key="#com.intellij.ide.util.TreeClassChooserDialog/0.0.1280.778@0.0.1280.778" timestamp="1584815026468" />
+    <state x="0" y="0" key="SettingsEditor" timestamp="1584815160919">
+      <screen x="0" y="0" width="1280" height="778" />
+    </state>
+    <state x="0" y="0" key="SettingsEditor/0.0.1280.778@0.0.1280.778" timestamp="1584815160919" />
+  </component>
+</project>

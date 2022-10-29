@@ -1,0 +1,17 @@
+# Local binaries and symbolic links
+/isolationtester
+/pg_isolation_regress
+/atmsort.pm
+/explain.pm
+/gpdiff.pl
+/gpstringsubs.pl
+/GPTest.pm
+
+# Local generated source files
+/specparse.c
+/specscanner.c
+
+# Generated subdirectories
+/results/
+/output_iso/
+/tmp_check_iso/
