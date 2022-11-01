@@ -5,7 +5,7 @@
 #+    ${SCRIPT_NAME} [-hv] [-o[file]] args ...
 #%
 #% DESCRIPTION
-#%    Script to run the TPC-H or JCC-H benchmark on SingleStore with a single machine.
+#%    Script to run the TPC-H or JCC-H benchmark on SingleStore. 
 #%    You can specify three different deployment strategies (WIM, WIN or WIC), 
 #%    three different data placement policies (FT, INT or MEM), 
 #%    number of workers and number of cores per worker.
@@ -36,7 +36,7 @@
 #================================================================
 #-
 #- IMPLEMENTATION
-#-    version         ${SCRIPT_NAME} 0.0.1
+#-    version         ${SCRIPT_NAME} 0.0.2
 #-    author          Alessandro Fogli <a.fogli18@imperial.ac.uk>
 #-
 
@@ -363,15 +363,17 @@ get_total_workers() {
 }
 
 get_port() {
-		LOW_BOUND=8080
-		RANGE=1000
-		while true; do
-			CANDIDATE=$[$LOW_BOUND + ($RANDOM % $RANGE)]
-			(echo "" >/dev/tcp/127.0.0.1/${CANDIDATE}) >/dev/null 2>&1
-			if [ $? -ne 0 ]; then
-				break
-			fi
-		done
+		# LOW_BOUND=8080
+		# RANGE=1000
+		# while true; do
+		# 	CANDIDATE=$[$LOW_BOUND + ($RANDOM % $RANGE)]
+		# 	(echo "" >/dev/tcp/127.0.0.1/${CANDIDATE}) >/dev/null 2>&1
+		# 	if [ $? -ne 0 ]; then
+		# 		break
+		# 	fi
+		# done
+
+		CANDIDATE=$(comm -23 <(seq 49152 65535 | sort) <(ss -tan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
 }
 
 create_numactl_array() {
@@ -460,6 +462,7 @@ start_coordinator_and_workers() {
 		#for ((i = 0; i < $TOTAL_CORES; i += 1)) ; do
 		#	CORE_LIST="${CORE_LIST}${i} "
 		#done
+
 		for i in `seq 0 $((NUM_NUMA_NODES-1))`
 		do
 			for j in  `seq 0 $(($NUMACORES-1))`
@@ -468,6 +471,7 @@ start_coordinator_and_workers() {
 				CORE_LIST="${CORE_LIST}${ncore} "
 			done
 		done
+
 
 
 		WORKER_CORE_ARRAY=()
@@ -689,7 +693,7 @@ flagMainScriptStart=0
 #============================
 
 	#== set short options ==#
-SCRIPT_OPTS=':o:txhv:b:s:q:c:d:m:w:p:-'
+SCRIPT_OPTS=':o:txhv:b:s:q:c:d:m:w:p:-:'
 
 	#== set long options associated with short one ==#
 typeset -A ARRAY_OPTS
@@ -699,6 +703,7 @@ ARRAY_OPTS=(
 	[scale-factor]=s
 	[query]=q
 	[cores-per-worker]=c
+	[benchmark]=b
 	[directory]=d
 	[timelog]=t
 	[ignorelock]=x
@@ -951,21 +956,22 @@ infotitle "Creating output directory for queries..."
 
 now="`date +%Y%m%d%H%M%S`";
 if [[ ($OUT_DIR == '') ]]; then
-	OUT_DIR="./results/${MODE}_${POLICY}_${now}"
+	OUT_DIR="./results/${MODE}_${now}"
 fi
 
-exec_cmd "mkdir -p ./results/${MODE}_${POLICY}_${now}"
-
+exec_cmd "mkdir -p ./results/${MODE}_${now}"
 
 if [[ $BENCH == 'TPC-H' ]]; then
 	infotitle "Generating the TPC-H dataset with SF $SCALE_FACTOR..."
+	export DSS_PATH=${SCRIPT_DIR}/benchmark-singlestore/dbgen/
 	cd benchmark-singlestore/dbgen/
-#	exec_cmd "./dbgen -s $SCALE_FACTOR"
+	exec_cmd "./dbgen -s $SCALE_FACTOR"
     cd ../../
 else
 	infotitle "Generating the JCC-H dataset with SF $SCALE_FACTOR..."
+	export DSS_PATH=${SCRIPT_DIR}/benchmark-singlestore/JCC-H_dbgen/
 	cd benchmark-singlestore/JCC-H_dbgen/
-#	exec_cmd "./dbgen -k -s $SCALE_FACTOR"
+	exec_cmd "./dbgen -k -s $SCALE_FACTOR"
 	cd ../../
 fi
 
@@ -997,11 +1003,11 @@ exec_cmd "mv *result.txt $OUT_DIR"
 
 eval "rm init.log"
 
-#if [[ $BENCH == 'TPC-H' ]]; then
-#	exec_cmd "sudo rm benchmark-singlestore/dbgen/*.tbl"
-#else
-#	exec_cmd "sudo rm benchmark-singlestore/JCC-H_dbgen/*.tbl"
-#fi
+if [[ $BENCH == 'TPC-H' ]]; then
+	exec_cmd "sudo rm benchmark-singlestore/dbgen/*.tbl"
+else
+	exec_cmd "sudo rm benchmark-singlestore/JCC-H_dbgen/*.tbl"
+fi
 
 sed -i '1d' ./benchmark-singlestore/create.sql
 
@@ -1018,4 +1024,3 @@ scriptfinish ; } 2>&1 | tee ${fileLog}
 	#=========#
 ipcf_load_rc >/dev/null
 exit $rc
-
