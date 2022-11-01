@@ -5,7 +5,7 @@
 #+    ${SCRIPT_NAME} [-hv] [-o[file]] args ...
 #%
 #% DESCRIPTION
-#%    Script to run the TPC-H or JCC-H benchmark on SparkSQL with a single machine.
+#%    Script to run the TPC-H or JCC-H benchmark on SparkSQL. 
 #%    You can specify three different deployment strategies (WIM, WIN or WIC), 
 #%    three different data placement policies (FT, INT or MEM), 
 #%    number of workers and number of cores per worker.
@@ -22,7 +22,7 @@
 #%    -q, --query                   TPC-H Query to perform comma separated, 
 #%                                  the default is 'all of them'.
 #%    -c  --cores-per-worker        Number of cores assigned to each worker.
-#%    -b  --benchmark               Type of benchmark: TPC-H or JCC-H (default=TPC-H).
+#%		-b  --benchmark               Type of benchmark: TPC-H or JCC-H (default=TPC-H).
 #%    -d  --directory               Query output directory.
 #%                                  Default: ./results/mode_%Y%m%d%H%M%S
 #%    -t, --timelog                 Add timestamp to log ("+%y/%m/%d@%H:%M:%S")
@@ -348,7 +348,18 @@ get_total_workers() {
 }
 
 get_port() {
-	CANDIDATE=$(comm -23 <(seq 49152 65535 | sort) <(ss -tan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
+		# LOW_BOUND=8080
+		# RANGE=1000
+		# while true; do
+		# 	CANDIDATE=$[$LOW_BOUND + ($RANDOM % $RANGE)]
+		# 	(echo "" >/dev/tcp/127.0.0.1/${CANDIDATE}) >/dev/null 2>&1
+		# 	if [ $? -ne 0 ]; then
+		# 		break
+		# 	fi
+		# done
+
+		CANDIDATE=$(comm -23 <(seq 49152 65535 | sort) <(ss -tan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
+
 }
 
 create_numactl_array() {
@@ -429,9 +440,18 @@ start_coordinator_and_workers() {
 	elif [[ ($MODE == 'WIM') ]]; then
 
 		CORE_LIST=""
-		for ((i = 0; i < $TOTAL_CORES; i += 1)) ; do
-			CORE_LIST="${CORE_LIST}${i} "
+		#for ((i = 0; i < $TOTAL_CORES; i += 1)) ; do
+		#	CORE_LIST="${CORE_LIST}${i} "
+		#done
+		for i in `seq 0 $((NUM_NUMA_NODES-1))`
+		do
+			for j in  `seq 0 $(($NUMACORES-1))`
+			do
+				ncore=$(($j*$NUM_NUMA_NODES+$i))
+				CORE_LIST="${CORE_LIST}${ncore} "
+			done
 		done
+
 
 		WORKER_CORE_ARRAY=()
 		for ((i = 0; i < $TOTAL_WORKERS; i += 1)) ; do
@@ -656,7 +676,7 @@ flagMainScriptStart=0
 #============================
 
 	#== set short options ==#
-SCRIPT_OPTS=':o:txhv:b:s:q:c:d:m:w:p:-'
+SCRIPT_OPTS=':o:txhv:b:s:q:c:d:m:w:p:-:'
 
 	#== set long options associated with short one ==#
 typeset -A ARRAY_OPTS
@@ -913,24 +933,25 @@ infotitle "Creating output directory for queries..."
 
 now="`date +%Y%m%d%H%M%S`";
 if [[ ($OUT_DIR == '') ]]; then
-	OUT_DIR="${SCRIPT_DIR}/results/${MODE}_${POLICY}_SF:${SCALE_FACTOR}_Workers:${TOTAL_WORKERS}_Cores_per_Workers:${CORES_PER_WORKER}_${now}"
+	OUT_DIR="./results/${MODE}_${now}"
 fi
 
-exec_cmd "mkdir -p ${SCRIPT_DIR}/results/${MODE}_${POLICY}_SF:${SCALE_FACTOR}_Workers:${TOTAL_WORKERS}_Cores_per_Workers:${CORES_PER_WORKER}_${now}"
+exec_cmd "mkdir -p ./results/${MODE}_${now}"
 
 exec_cmd "mkdir -p /tmp/spark-events"
 	
-
 if [[ $BENCH == 'TPC-H' ]]; then
 	infotitle "Generating the TPC-H dataset with SF $SCALE_FACTOR..."
+	export DSS_PATH=${SCRIPT_DIR}/benchmark-singlestore/dbgen/
 	cd benchmark-sparksql/dbgen/
-	#exec_cmd "./dbgen -s $SCALE_FACTOR"
-  	cd ../../
+	exec_cmd "./dbgen -s $SCALE_FACTOR"
+  cd ../../
 	infotitle "Running the TPC-H benchmark..."
 else
 	infotitle "Generating the JCC-H dataset with SF $SCALE_FACTOR..."
+	export DSS_PATH=${SCRIPT_DIR}/benchmark-singlestore/JCCC-H_dbgen/
 	cd benchmark-sparksql/JCC-H_dbgen/
-	#exec_cmd "./dbgen -k -s $SCALE_FACTOR"
+	exec_cmd "./dbgen -k -s $SCALE_FACTOR"
 	cd ../../
 	infotitle "Running the JCC-H benchmark..."	
 fi
@@ -943,11 +964,11 @@ stop_coordinator_and_workers
 
 infotitle "Removing dataset..."
 
-#if [[ $BENCH == 'TPC-H' ]]; then
-	#exec_cmd "sudo rm ./benchmark-sparksql/dbgen/*.tbl"
-#else
-	#exec_cmd "sudo rm ./benchmark-sparksql/JCC-H_dbgen/*.tbl"
-#fi
+if [[ $BENCH == 'TPC-H' ]]; then
+	exec_cmd "sudo rm ./benchmark-sparksql/dbgen/*.tbl"
+else
+	exec_cmd "sudo rm ./benchmark-sparksql/JCC-H_dbgen/*.tbl"
+fi
 
 infotitle "Moving results into the output directory..."
 
@@ -974,5 +995,25 @@ scriptfinish ; } 2>&1 | tee ${fileLog}
 	#=========#
 ipcf_load_rc >/dev/null
 exit $rc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
