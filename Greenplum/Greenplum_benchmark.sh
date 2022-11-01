@@ -5,9 +5,8 @@
 #+    ${SCRIPT_NAME} [-hv] [-o[file]] args ...
 #%
 #% DESCRIPTION
-#%    Script to run the TPC-H or JCC-H benchmark on Greenplum with a single machine.
-#%    You can specify three different deployment strategies (WIM, WIN or WIC), 
-#%    three different data placement policies (FT, INT or MEM), 
+#%    Script to run the TPC-H or JCC-H benchmark on Greenplum. 
+#%    You can specify three different data placement policies (FT, INT or MEM), 
 #%    number of workers and number of cores per worker.
 #%
 #% OPTIONS
@@ -30,7 +29,7 @@
 #%    -v, --version                 Print script information
 #%
 #% EXAMPLES
-#%    ${SCRIPT_NAME} -o DEFAULT -t -m WIN -s 100
+#%    ${SCRIPT_NAME} -o DEFAULT -t -m WIC -s 100
 #%
 #================================================================
 #-
@@ -368,15 +367,17 @@ set_coordinator_config_file() {
 }
 
 get_port() {
-		LOW_BOUND=8080
-		RANGE=1000
-		while true; do
-			CANDIDATE=$[$LOW_BOUND + ($RANDOM % $RANGE)]
-			(echo "" >/dev/tcp/127.0.0.1/${CANDIDATE}) >/dev/null 2>&1
-			if [ $? -ne 0 ]; then
-				break
-			fi
-		done
+		# LOW_BOUND=8080
+		# RANGE=1000
+		# while true; do
+		# 	CANDIDATE=$[$LOW_BOUND + ($RANDOM % $RANGE)]
+		# 	(echo "" >/dev/tcp/127.0.0.1/${CANDIDATE}) >/dev/null 2>&1
+		# 	if [ $? -ne 0 ]; then
+		# 		break
+		# 	fi
+		# done
+
+		CANDIDATE=$(comm -23 <(seq 49152 65535 | sort) <(ss -tan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
 }
 
 create_numactl_array() {
@@ -546,7 +547,7 @@ flagMainScriptStart=0
 #============================
 
 	#== set short options ==#
-SCRIPT_OPTS=':o:txhv:b:s:q:c:d:w:p:-'
+SCRIPT_OPTS=':o:txhv:b:s:q:c:d:w:p:-:'
 
 	#== set long options associated with short one ==#
 typeset -A ARRAY_OPTS
@@ -556,6 +557,7 @@ ARRAY_OPTS=(
 	[query]=q
 	[cpu-cores]=c
 	[directory]=d
+	[benchmark]=b
 	[policy]=p
 	[timelog]=t
 	[ignorelock]=x
@@ -805,6 +807,7 @@ exec_cmd "mkdir -p ${GP_SCRIPT_DIR}/results/${MODE}_${POLICY}_${now}"
 
 if [[ $BENCH == 'TPC-H' ]]; then
 	infotitle "Generating the TPC-H dataset with SF $SCALE_FACTOR..."
+	export DSS_PATH=${SCRIPT_DIR}/benchmark-singlestore/dbgen/
 	cd benchmark-greenplum/dbgen/
 	exec_cmd "./dbgen -s $SCALE_FACTOR"
 	infotitle "Refining the TPC-H dataset..."
@@ -812,6 +815,7 @@ if [[ $BENCH == 'TPC-H' ]]; then
 	cd ../../
 else
 	infotitle "Generating the JCC-H dataset with SF $SCALE_FACTOR..."
+	export DSS_PATH=${SCRIPT_DIR}/benchmark-singlestore/JCC-H_dbgen/
 	cd benchmark-greenplum/JCC-H_dbgen/
 	exec_cmd "./dbgen -k -s $SCALE_FACTOR"
 	infotitle "Refining the JCC-H dataset..."
