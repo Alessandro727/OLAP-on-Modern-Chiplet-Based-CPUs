@@ -27,6 +27,12 @@ Or change the data placement policy (MEM, FT or INT):
 
 	user@mac01:~$ ./Greenplum_benchmark.sh -t -s 100 -p INT -b TPC-H
 
+For more options run:
+
+	user@mac01:~$ ./Greenplum_benchmark.sh -h
+
+P.S.: Set the Scale Factor so that it is no more than half of the total amount of RAM available.
+
 ### Data Placement
 
 To perform the same experiment as in the paper and generate the plot:

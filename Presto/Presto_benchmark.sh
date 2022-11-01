@@ -285,7 +285,6 @@ print_message_with_date_and_newline() {
 	echo "${TSTAMP} ${1}"
 }
 
-
 # display error if the script is run as root user
 check_user_not_root() {
 	if [[ $USER == "root" ]]; then
@@ -306,10 +305,6 @@ get_number_of_NUMA_nodes() {
 		exit 1
 	fi
 
-	#NUMACORES=$(lscpu | grep -i -E  "^CPU\(s\):|core|socket")
-	#NUMACORES=${NUMACORES##*Core(s) per socket: }
-	#NUMACORES=${NUMACORES%Socket(s):*}
-
 	NUMACORES=$(grep ^cpu\\scores /proc/cpuinfo | uniq |  awk '{print $4}')
 
 	TOTAL_CORES=$(($NUMACORES*$NUM_NUMA_NODES))
@@ -317,7 +312,7 @@ get_number_of_NUMA_nodes() {
 	create_numactl_array
 
 	if [[ $CORES_PER_WORKER -eq 0 ]]; then
-		if [[ $MODE == "WIN" ]]; then 
+		if [[ $MODE == "WIN" || ${MODE} == 'SPMWIN' ]]; then 
 			CORES_PER_WORKER=$NUMACORES
 		elif [[ $MODE == "WIM" ]]; then
 			CORES_PER_WORKER=$TOTAL_CORES
@@ -349,7 +344,8 @@ get_jvm_and_nodes_mem() {
 	PHYMEM=$(awk -F":" '$1~/MemTotal/{print $2}' /proc/meminfo )
 	PHYMEM=${PHYMEM% kB}
 	# Change amount of memory for JVM (JVM_MEM) or memory per Presto nodes (PRESTO_TOTAL_MEM)
-	JVM_MEM=$(echo "scale=0; ${PHYMEM} / 1.16" | bc)
+	JVM_MEM=$(echo "scale=0; ${PHYMEM} / 1.17" | bc)
+	#PRESTO_TOTAL_MEM=$(echo "scale=0; ${JVM_MEM} / 1500" | bc)
 	PRESTO_TOTAL_MEM=$(echo "scale=0; ${JVM_MEM} / 1500" | bc)
 	# Set amount of memory for each node based on:
 	#  Domain type and
@@ -392,19 +388,9 @@ remove_workers_directory() {
 } 
 
 get_port() {
-#		LOW_BOUND=8080
-#		RANGE=1000
-#		while true; do
-#			CANDIDATE=$[$LOW_BOUND + ($RANDOM % $RANGE)]
-#			(echo "" >/dev/tcp/127.0.0.1/${CANDIDATE}) >/dev/null 2>&1
-#			if [ $? -ne 0 ]; then
-#				break
-#			fi
-#		done
 
 		CANDIDATE=$(comm -23 <(seq 49152 65535 | sort) <(ss -tan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
 }
-
 
 set_worker_config_files() {
 	for ((i = 1; i < $TOTAL_WORKERS; i += 1)) ; do
@@ -553,8 +539,16 @@ start_coordinator_and_workers() {
 	elif [[ ($MODE == 'WIM') ]]; then
 
 		CORE_LIST=""
-		for ((i = 0; i < $TOTAL_CORES; i += 1)) ; do
-			CORE_LIST="${CORE_LIST}${i} "
+		#for ((i = 0; i < $TOTAL_CORES; i += 1)) ; do
+		#	CORE_LIST="${CORE_LIST}${i} "
+		#done
+		for i in `seq 0 $((NUM_NUMA_NODES-1))`
+		do
+			for j in  `seq 0 $(($NUMACORES-1))`
+			do
+				ncore=$(($j*$NUM_NUMA_NODES+$i))
+				CORE_LIST="${CORE_LIST}${ncore} "
+			done
 		done
 
 		WORKER_CORE_ARRAY=()
@@ -581,47 +575,42 @@ start_coordinator_and_workers() {
 			done
 		fi
 
-	for ((i = 0; i < $TOTAL_WORKERS; i += 1)) ; do
-		if [[ $POLICY == "FT" ]]; then
-			COMMAND="numactl --physcpubind=${WORKER_CORE_ARRAY[$i]}"
-			COMMAND=${COMMAND::-1}
-		elif [[ $POLICY == "INT" ]]; then
-			COMMAND="numactl --physcpubind=${WORKER_CORE_ARRAY[$i]}"
-			COMMAND=${COMMAND::-1}
-			COMMAND="${COMMAND} -i 0-$(($NUM_NUMA_NODES-1))"
-		else
-			COMMAND="numactl --physcpubind=${WORKER_CORE_ARRAY[$i]}"
-			COMMAND=${COMMAND::-1}
-			COMMAND="${COMMAND} -m 0-$(($NUM_NUMA_NODES-1))"
-		fi
-		#COMMAND=${COMMAND::-1}
-		#MEMB=$((NUM_NUMA_NODES-1))
-		if [[ $i -eq 0 ]]; then
-			#COMMAND="$COMMAND --membind=0-$MEMB ./presto-worker-coordinator/bin/launcher start"
-			COMMAND="$COMMAND ${SCRIPT_DIR}/presto-worker-coordinator/bin/launcher start"
-			TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
-			echo "${TSTAMP} ${COMMAND}"
-			TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
-			echo -n "${TSTAMP}"
-			$COMMAND
+		for ((i = 0; i < $TOTAL_WORKERS; i += 1)) ; do
+			if [[ $POLICY == "FT" ]]; then
+				COMMAND="numactl --physcpubind=${WORKER_CORE_ARRAY[$i]}"
+				COMMAND=${COMMAND::-1}
+			elif [[ $POLICY == "INT" ]]; then
+				COMMAND="numactl --physcpubind=${WORKER_CORE_ARRAY[$i]}"
+				COMMAND=${COMMAND::-1}
+				COMMAND="${COMMAND} -i 0-$(($NUM_NUMA_NODES-1))"
+			else
+				COMMAND="numactl --physcpubind=${WORKER_CORE_ARRAY[$i]}"
+				COMMAND=${COMMAND::-1}
+				COMMAND="${COMMAND} -m 0-$(($NUM_NUMA_NODES-1))"
+			fi
 
-		else
-			#COMMAND="$COMMAND --membind=0-$MEMB ./presto-worker-$i/bin/launcher start"
-			COMMAND="$COMMAND ${SCRIPT_DIR}/presto-worker-$i/bin/launcher start"
-			TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
-			echo "${TSTAMP} ${COMMAND}"
-			TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
-			echo -n "${TSTAMP}"
-			$COMMAND
-		fi
-	done
+			if [[ $i -eq 0 ]]; then
+				COMMAND="$COMMAND ${SCRIPT_DIR}/presto-worker-coordinator/bin/launcher start"
+				TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
+				echo "${TSTAMP} ${COMMAND}"
+				TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
+				echo -n "${TSTAMP}"
+				$COMMAND
+
+			else
+				COMMAND="$COMMAND ${SCRIPT_DIR}/presto-worker-$i/bin/launcher start"
+				TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
+				echo "${TSTAMP} ${COMMAND}"
+				TSTAMP="$( date ${SCRIPT_TIMELOG_FORMAT} ) ";
+				echo -n "${TSTAMP}"
+				$COMMAND
+			fi
+		done
 
 	elif [[ ($MODE == 'WIC') ]]; then
 
 		for ((j = 0; j < $WORKERS_PER_DOMAIN; j += 1)) ; do
 			for ((i = 0; i < $TOTAL_CORES; i += 1)) ; do
-				#COMMAND="numactl --physcpubind=$i"
-				#MEMB=$(($i%$NUM_NUMA_NODES))
 
 				if [[ $POLICY == "FT" ]]; then
 					COMMAND="numactl --physcpubind=$i"
@@ -660,7 +649,7 @@ start_coordinator_and_workers() {
 		for ((i = 0; i < $TOTAL_CORES; i += 1)) ; do
 			CORE_LIST="${CORE_LIST}${i} "
 		done
-		
+
 		WORKER_CORE_ARRAY=()
 		for ((i = 0; i < $TOTAL_WORKERS; i += 1)) ; do
 			WORKER_CORE_ARRAY+=("")
@@ -703,8 +692,6 @@ start_coordinator_and_workers() {
 					$COMMAND
 			fi
 		done
-
-
 	fi
 }
 
@@ -810,7 +797,7 @@ flagMainScriptStart=0
 #============================
 
 	#== set short options ==#
-SCRIPT_OPTS=':o:txhv:s:q:c:d:m:w:p:-'
+SCRIPT_OPTS=':o:txhv:s:q:c:d:m:w:p:-:'
 
 	#== set long options associated with short one ==#
 typeset -A ARRAY_OPTS
@@ -923,6 +910,8 @@ while getopts ${SCRIPT_OPTS} OPTION ; do
 				"FT")
 				;;
 				"INT")
+				;;
+				"SPMWIN")
 				;;
 				*)	
 					error "Invalid -p option: $POLICY"
@@ -1042,7 +1031,7 @@ check_and_set_spmwin
 
 infotitle "Starting test in ${MODE} mode with ${TOTAL_WORKERS} total Workers..."
 
-print_message_with_date "MUMA Domains: ${NUM_NUMA_NODES}, Cores per NUMA Domain: ${NUMACORES}"
+print_message_with_date_and_newline "MUMA Domains: ${NUM_NUMA_NODES}, Cores per NUMA Domain: ${NUMACORES}"
 
 get_jvm_and_nodes_mem
 
@@ -1101,4 +1090,3 @@ scriptfinish ; } 2>&1 | tee ${fileLog}
 	#=========#
 ipcf_load_rc >/dev/null
 exit $rc
-
