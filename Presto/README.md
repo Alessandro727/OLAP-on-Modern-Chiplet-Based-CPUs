@@ -4,7 +4,7 @@ Presto is a distributed SQL query engine designed to query large data sets distr
 
 ### Running Experiments
 
-To run the TPC-H benchmark in WICN+MEM mode:
+To run the TPC-H benchmark in WIN+MEM mode:
 
 	user@mac01:~$ ./Presto_benchmark.sh -t -s 100 -m WIN -p MEM
 
