@@ -33,6 +33,7 @@ Example with 3 machines:
 	192.168.10.11
 	192.168.10.12
 
+P.S.: Performance varies depending on the network card associated with the IP address used. To use different network cards, simply assign the IP address of a different network card.
 
 #### 3. Start the Worker machines in the cluster. 
 
