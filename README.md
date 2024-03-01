@@ -3,7 +3,7 @@
 
 Systematic experimental study and investigation of the efficiency of resource utilisation by distributed query engines. 
 
-The code and scripts provided allow the replication of the experiments shown in the 'OLAP on Modern Chiplet-Based Processors' paper currently under review for VLDB2024.
+The code and scripts provided allow the replication of the experiments shown in the 'OLAP on Modern Chiplet-Based Processors' paper currently under review for VLDB 2024.
 
 ## Getting Started
 
